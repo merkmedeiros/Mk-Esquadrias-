@@ -1,165 +1,128 @@
 import streamlit as st
-import math
+import pandas as pd
 
-# 1. CONFIGURAÇÃO DE IDENTIDADE MK (PÁGINA CHEIA)
-st.set_page_config(page_title="MK - Engenharia de Vidros", layout="wide")
+# 1. CONFIGURAÇÃO MK - PÁGINA CHEIA
+st.set_page_config(page_title="MK - Engenharia v40.0", layout="wide")
 
-# --- PERSISTÊNCIA DE DADOS (BANCO DE DADOS TEMPORÁRIO) ---
-for key in ['db_clientes', 'db_projetos', 'db_obras', 'custo_vidros', 'custo_perfis', 'custo_acessorios']:
+# --- PERSISTÊNCIA E ESTADOS ---
+for key in ['db_clientes', 'db_projetos', 'db_obras', 'custo_vidros', 'edit_index']:
     if key not in st.session_state:
         if 'vidros' in key:
-            st.session_state.custo_vidros = {
-                "Incolor": {"6mm": 120.0, "8mm": 180.0, "10mm": 220.0},
-                "Verde": {"6mm": 140.0, "8mm": 210.0, "10mm": 250.0},
-                "Fumê": {"6mm": 150.0, "8mm": 230.0, "10mm": 280.0}
-            }
-        elif 'perfis' in key:
-            st.session_state.custo_perfis = {"Suprema": {}, "Gold": {}}
-        elif 'acessorios' in key:
-            st.session_state.custo_acessorios = []
-        else:
-            st.session_state[key] = []
+            st.session_state.custo_vidros = {"Incolor": {"6mm": 120.0, "8mm": 180.0}, "Verde": {"6mm": 140.0, "8mm": 210.0}}
+        elif 'edit_index' in key: st.session_state.edit_index = None
+        else: st.session_state[key] = []
 
-# --- ESTILO VISUAL INDUSTRIAL MK (SEM ABAS LATERAIS) ---
+# --- ESTILO INDUSTRIAL REFORÇADO ---
 st.markdown("""
     <style>
     .main { background-color: #f0f2f6; }
-    
-    /* Títulos e Headers */
-    .mk-header { color: #1e3a8a; font-weight: 800; border-bottom: 4px solid #1e3a8a; padding-bottom: 10px; margin-bottom: 20px; }
-    
-    /* Card de Projeto com Contraste Total */
+    .mk-header { color: #1e3a8a; font-weight: 800; border-bottom: 4px solid #1e3a8a; padding-bottom: 10px; }
     .card-mk {
-        background-color: #ffffff;
-        border: 2px solid #1e3a8a;
-        border-left: 10px solid #1e3a8a;
-        padding: 20px;
-        border-radius: 8px;
-        margin-bottom: 15px;
-        box-shadow: 4px 4px 10px rgba(0,0,0,0.1);
+        background-color: #ffffff; border: 2px solid #1e3a8a; border-left: 10px solid #1e3a8a;
+        padding: 20px; border-radius: 8px; margin-bottom: 15px; box-shadow: 4px 4px 10px rgba(0,0,0,0.1);
     }
-    .card-mk p, .card-mk b, .card-mk strong { color: #000000 !important; font-size: 16px; }
-    .card-mk h4 { color: #1e3a8a; font-weight: bold; margin-bottom: 10px; }
-    
-    /* Customização das Abas Superiores */
-    .stTabs [data-baseweb="tab-list"] { gap: 8px; }
-    .stTabs [data-baseweb="tab"] { 
-        background-color: #e2e8f0; 
-        border-radius: 5px 5px 0 0; 
-        padding: 12px 20px; 
-        font-weight: bold;
-        color: #1e3a8a;
-    }
+    .card-mk p, .card-mk b { color: #000000 !important; }
     .stTabs [aria-selected="true"] { background-color: #1e3a8a !important; color: white !important; }
     </style>
     """, unsafe_allow_html=True)
 
-st.markdown("<h1 class='mk-header'>⚒️ MK - GESTÃO INDUSTRIAL v39.0</h1>", unsafe_allow_html=True)
+st.markdown("<h1 class='mk-header'>⚒️ MK - GESTÃO INDUSTRIAL v40.0</h1>", unsafe_allow_html=True)
 
-# --- NAVEGAÇÃO POR ABAS NO TOPO ---
-tabs = st.tabs(["📍 CLIENTES", "📐 PROJETOS", "💰 ORÇAMENTO", "🏭 PRODUÇÃO", "⚙️ CUSTOS"])
+tabs = st.tabs(["📍 CLIENTES", "📐 PROJETO/EDIÇÃO", "💰 ORÇAMENTO", "🏭 LISTA DE CORTE", "⚙️ CUSTOS"])
 
-# --- ABA 1: CLIENTES (10 CAMPOS COMPLETOS) ---
+# --- ABA 1: CLIENTES ---
 with tabs[0]:
     st.subheader("👥 Cadastro de Clientes")
     with st.form("f_cli"):
         c1, c2 = st.columns(2)
         n = c1.text_input("Nome / Razão Social")
-        e = c2.text_input("E-mail")
-        t = c1.text_input("Telefone Fixo")
         w = c2.text_input("WhatsApp")
-        st.divider()
-        cp = c1.text_input("CEP")
-        lg = c2.text_input("Logradouro (Rua/Av)")
-        ba, ci = st.columns(2)
-        bai = ba.text_input("Bairro")
-        cid = ci.text_input("Cidade/UF")
-        ref = st.text_input("Ponto de Referência")
-        obr = st.text_input("Endereço da Obra (Se diferente)")
+        lg = st.text_input("Endereço Completo")
         if st.form_submit_button("💾 SALVAR CLIENTE"):
-            st.session_state.db_clientes.append({"nome": n, "obra": obr if obr else lg, "wpp": w})
+            st.session_state.db_clientes.append({"nome": n, "obra": lg, "wpp": w})
             st.rerun()
 
-    st.markdown("---")
-    for i, cli in enumerate(st.session_state.db_clientes):
-        col_c, col_b = st.columns([5, 1])
-        with col_c:
-            st.info(f"👤 **{cli['nome']}** | 📍 {cli['obra']} | 📱 {cli['wpp']}")
-        if col_b.button("🗑️", key=f"del_cli_{i}"):
-            st.session_state.db_clientes.pop(i)
-            st.rerun()
-
-# --- ABA 2: PROJETOS (LOCALIZAÇÃO E OBSERVAÇÃO) ---
+# --- ABA 2: PROJETO E EDIÇÃO ---
 with tabs[1]:
-    st.subheader("📐 Engenharia e Peças")
-    col1, col2, col3 = st.columns(3)
-    lin = col1.selectbox("Linha", ["Suprema", "Gold"])
-    tip = col2.selectbox("Tipologia", ["Janela 2fls", "Janela 4fls", "Porta Giro", "Fixo", "Maxim-ar"])
-    cor = col3.selectbox("Cor Alumínio", ["Branco", "Preto", "Bronze"])
-    
-    st.markdown("#### 💎 Vidro")
-    cv, ev = st.columns(2)
-    c_vid = cv.selectbox("Cor Vidro", list(st.session_state.custo_vidros.keys()))
-    e_vid = ev.selectbox("Espessura", list(st.session_state.custo_vidros[c_vid].keys()))
-    
-    l_p, a_p, q_p = st.columns(3)
-    larg = l_p.number_input("Largura (mm)", min_value=1)
-    alt = a_p.number_input("Altura (mm)", min_value=1)
-    qtd = q_p.number_input("Quantidade de Peças", min_value=1, step=1)
-    
-    st.markdown("#### 📍 Detalhes Técnicos por Peça")
-    pecas = []
-    for i in range(int(qtd)):
-        ca1, ca2 = st.columns([1, 2])
-        amb = ca1.text_input(f"Ambiente Peça {i+1}", key=f"amb_v39_{i}")
-        obs = ca2.text_input(f"Observação Peça {i+1}", key=f"obs_v39_{i}")
-        pecas.append({"amb": amb, "obs": obs})
-        
-    if st.button("➕ ADICIONAR AO ORÇAMENTO", use_container_width=True):
-        st.session_state.db_projetos.append({
-            "tipo": tip, "linha": lin, "cor": cor, "vidro": f"{e_vid} {c_vid}",
-            "larg": larg, "alt": alt, "qtd": qtd, "detalhes": pecas
-        })
-        st.success("Projeto adicionado!")
+    if st.session_state.edit_index is not None:
+        st.warning(f"⚠️ EDITANDO ITEM {st.session_state.edit_index + 1}")
+        item_edit = st.session_state.db_projetos[st.session_state.edit_index]
+    else:
+        st.subheader("📐 Nova Peça")
+        item_edit = {"linha": "Suprema", "tipo": "Janela 2fls", "larg": 1000, "alt": 1000, "qtd": 1}
 
-# --- ABA 3: ORÇAMENTO (VISUALIZAÇÃO DE CARD INDUSTRIAL) ---
+    col1, col2, col3 = st.columns(3)
+    lin = col1.selectbox("Linha", ["Suprema", "Gold"], index=0 if item_edit['linha'] == "Suprema" else 1)
+    tip = col2.selectbox("Tipologia", ["Janela 2fls", "Janela 4fls", "Porta Giro", "Fixo"], index=0)
+    larg = col1.number_input("Largura (mm)", value=int(item_edit.get('larg', 1000)))
+    alt = col2.number_input("Altura (mm)", value=int(item_edit.get('alt', 1000)))
+    qtd = col3.number_input("Quantidade", value=int(item_edit.get('qtd', 1)), min_value=1)
+    
+    if st.button("💾 SALVAR PROJETO / ATUALIZAR" if st.session_state.edit_index is not None else "➕ ADICIONAR AO ORÇAMENTO", use_container_width=True):
+        novo_p = {"tipo": tip, "linha": lin, "larg": larg, "alt": alt, "qtd": qtd}
+        if st.session_state.edit_index is not None:
+            st.session_state.db_projetos[st.session_state.edit_index] = novo_p
+            st.session_state.edit_index = None # Limpa o modo edição
+        else:
+            st.session_state.db_projetos.append(novo_p)
+        st.success("Sucesso! Verifique a aba Orçamento.")
+        st.rerun()
+
+# --- ABA 3: ORÇAMENTO E PAGAMENTO ---
 with tabs[2]:
-    st.subheader("💰 Resumo do Orçamento")
+    st.subheader("💰 Resumo e Pagamento")
     if st.session_state.db_projetos:
         for idx, p in enumerate(st.session_state.db_projetos):
-            with st.container():
-                c_inf, c_btn = st.columns([5, 1])
-                c_inf.markdown(f"""
-                <div class='card-mk'>
-                    <h4>{p['tipo'].upper()} - {p['linha'].upper()} ({p['qtd']} un)</h4>
-                    <p><b>Medidas:</b> {p['larg']} x {p['alt']} mm</p>
-                    <p><b>Vidro:</b> {p['vidro']} | <b>Alumínio:</b> {p['cor']}</p>
-                </div>
-                """, unsafe_allow_html=True)
-                if c_btn.button("🗑️ APAGAR", key=f"del_p_v39_{idx}"):
-                    st.session_state.db_projetos.pop(idx)
-                    st.rerun()
+            c_inf, c_ed, c_del = st.columns([4, 1, 1])
+            c_inf.markdown(f"<div class='card-mk'><b>{p['tipo']}</b> | {p['larg']}x{p['alt']}mm | {p['qtd']} un.</div>", unsafe_allow_html=True)
+            
+            if c_ed.button("✏️ EDITAR", key=f"ed_{idx}"):
+                st.session_state.edit_index = idx
+                st.rerun()
+            if c_del.button("🗑️ APAGAR", key=f"del_{idx}"):
+                st.session_state.db_projetos.pop(idx)
+                st.rerun()
         
         st.divider()
-        if st.button("🔥 LIMPAR TUDO", key="clear_all"):
-            st.session_state.db_projetos = []
-            st.rerun()
+        st.subheader("💳 Detalhes do Pagamento")
+        pg_col1, pg_col2 = st.columns(2)
+        forma_pg = pg_col1.selectbox("Forma de Pagamento", ["Pix (5% desc)", "Cartão 12x", "Entrada + Boleto"])
+        status_sinal = pg_col2.radio("Sinal Recebido?", ["Não", "Sim - Liberar Produção"])
+        
+        if st.button("🚀 CONFIRMAR PEDIDO E GERAR LISTAS", use_container_width=True):
+            if status_sinal == "Sim - Liberar Produção":
+                st.session_state.db_obras = st.session_state.db_projetos.copy()
+                st.balloons()
+                st.success("Pedido enviado para a PRODUÇÃO!")
     else:
-        st.info("Nenhum projeto no orçamento.")
+        st.info("Adicione projetos para ver o orçamento.")
 
-# --- ABA 5: CUSTOS (MATRIZ COMPLETA) ---
+# --- ABA 4: PRODUÇÃO (LISTA DE CORTE E CHECK-LIST) ---
+with tabs[3]:
+    st.subheader("🏭 Ordem de Fábrica")
+    if not st.session_state.db_obras:
+        st.warning("Aguardando confirmação de pagamento no Orçamento.")
+    else:
+        for p in st.session_state.db_obras:
+            with st.expander(f"📋 {p['tipo']} - {p['larg']}x{p['alt']} mm", expanded=True):
+                c1, c2 = st.columns(2)
+                with c1:
+                    st.markdown("**📐 Lista de Corte (Alumínio):**")
+                    if "Janela 2fls" in p['tipo']:
+                        st.write(f"- Trilho Superior: {p['larg']} mm (1 un)")
+                        st.write(f"- Trilho Inferior: {p['larg']} mm (1 un)")
+                        st.write(f"- Montante Lateral: {p['alt']} mm (2 un)")
+                        st.write(f"- Mão de Amigo: {p['alt'] - 45} mm (2 un)")
+                with c2:
+                    st.markdown("**💎 Plano de Vidros:**")
+                    v_l = (p['larg'] / 2) + 20
+                    v_a = p['alt'] - 95
+                    st.write(f"- Vidro: {v_l:.0f} x {v_a:.0f} mm ({p['qtd'] * 2} peças)")
+                
+                st.markdown("**🔩 Check-list de Materiais:**")
+                st.write(f"✅ Roldanas (4 un/peça) | ✅ Fecho Central | ✅ Escova de Vedação: {(p['alt']*4 + p['larg']*2)/1000:.1f} metros")
+
+# --- ABA 5: CUSTOS ---
 with tabs[4]:
-    st.subheader("⚙️ Tabela de Custos (Vidros, Perfis e Acessórios)")
-    t1, t2, t3 = st.tabs(["🖼️ Vidros", "📊 Perfis", "🔩 Acessórios"])
-    
-    with t1:
-        for cor_v, espessuras in st.session_state.custo_vidros.items():
-            st.markdown(f"**Vidro {cor_v}**")
-            cols = st.columns(3)
-            for i, (esp, preco) in enumerate(espessuras.items()):
-                st.session_state.custo_vidros[cor_v][esp] = cols[i].number_input(f"{esp}", value=preco, key=f"v_{cor_v}_{esp}")
-    
-    with t2:
-        st.info("Configure aqui o peso por metro e o preço do KG do Alumínio.")
-    with t3:
-        st.info("Adicione aqui os valores unitários de roldanas, fechos e escovas.")
+    st.subheader("⚙️ Configuração")
+    st.info("Preços de m² de vidros e acessórios para cálculo automático.")
