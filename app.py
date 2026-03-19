@@ -3,20 +3,12 @@ import pandas as pd
 import math
 
 # 1. CONFIGURAÇÃO DE IDENTIDADE MK
-st.set_page_config(page_title="MK - Engenharia v32.0", layout="wide")
+st.set_page_config(page_title="MK - Engenharia v33.0", layout="wide")
 
-# Inicialização do Banco de Dados Temporário (Session State)
+# Inicialização do Banco de Dados Temporário
 if 'db_clientes' not in st.session_state: st.session_state.db_clientes = []
 if 'db_projetos' not in st.session_state: st.session_state.db_projetos = []
 if 'db_obras' not in st.session_state: st.session_state.db_obras = []
-
-# Matriz de Custos e Pesos
-if 'tab_perfis' not in st.session_state:
-    st.session_state.tab_perfis = {
-        "Suprema": {"SU-001": 0.455, "SU-039": 0.580, "SU-005": 0.320},
-        "Gold": {"LG-028": 0.950, "LG-040": 1.100}
-    }
-
 if 'custo_vidros' not in st.session_state:
     st.session_state.custo_vidros = {
         "Incolor": {"6mm": 120.0, "8mm": 180.0, "10mm": 220.0},
@@ -28,73 +20,97 @@ if 'custo_vidros' not in st.session_state:
 st.markdown("""
     <style>
     .stButton>button { font-weight: bold; width: 100%; }
-    .btn-delete { background-color: #ff4b4b !important; color: white !important; }
     .card-projeto { border: 1px solid #1e3a8a; padding: 15px; border-radius: 8px; background: #fff; margin-bottom: 10px; }
     </style>
     """, unsafe_allow_html=True)
 
-st.title("⚒️ MK - GESTÃO TOTAL v32.0")
+st.title("⚒️ MK - GESTÃO TOTAL v33.0")
 
 # --- NAVEGAÇÃO POR ABAS ---
 tabs = st.tabs(["📍 Cliente", "📏 Projeto", "💰 Orçamento", "🏭 Produção", "🚚 Instalação", "🚧 Gestão Obras", "⚙️ Custos"])
 
-# --- ABA 1: CLIENTE (COM EXCLUSÃO) ---
+# --- ABA 1: CLIENTE ---
 with tabs[0]:
     st.header("👥 Cadastro de Cliente")
-    with st.form("cli_v32"):
-        c1, c2 = st.columns(2); nome = c1.text_input("Nome"); email = c2.text_input("E-mail")
-        tel = c1.text_input("Telefone"); wpp = c2.text_input("WhatsApp")
-        st.divider(); cep = c1.text_input("CEP"); log = c2.text_input("Logradouro")
-        ref = st.text_input("Ponto de Referência"); obra = st.text_input("Endereço da Obra")
+    with st.form("cli_v33"):
+        c1, c2 = st.columns(2)
+        nome = c1.text_input("Nome")
+        tel = c2.text_input("WhatsApp")
+        cep = c1.text_input("CEP")
+        log = c2.text_input("Logradouro")
         if st.form_submit_button("Salvar Cliente"):
-            st.session_state.db_clientes.append({"id": len(st.session_state.db_clientes), "nome": nome, "obra": obra if obra else log})
+            st.session_state.db_clientes.append({"nome": nome, "obra": log})
+            st.rerun()
 
     st.subheader("Lista de Clientes")
     for i, cli in enumerate(st.session_state.db_clientes):
         col_c1, col_c2 = st.columns([4, 1])
         col_c1.write(f"👤 {cli['nome']} - {cli['obra']}")
-        if col_c2.button(f"🗑️ Apagar", key=f"del_cli_{i}"):
+        if col_c2.button(f"🗑️ Apagar", key=f"btn_cli_del_{i}"):
             st.session_state.db_clientes.pop(i)
             st.rerun()
 
-    if st.button("🔥 APAGAR TODOS OS CLIENTES", key="clear_all_cli"):
-        st.session_state.db_clientes = []
-        st.rerun()
-
 # --- ABA 2: PROJETO ---
 with tabs[1]:
-    st.header("📐 Configuração de Projeto")
-    col1, col2, col3 = st.columns(3)
-    linha = col1.selectbox("Linha", list(st.session_state.tab_perfis.keys()))
-    tipo = col2.selectbox("Tipologia", ["Janela 2fls", "Janela 4fls", "Porta Giro", "Fixo"])
-    cor = col3.selectbox("Cor Alumínio", ["Branco", "Preto"])
+    st.header("📐 Novo Projeto")
+    c1, c2, c3 = st.columns(3)
+    tipo = c1.selectbox("Tipologia", ["Janela 2fls", "Janela 4fls", "Porta Giro", "Fixo"])
+    larg = c2.number_input("Largura (mm)", min_value=0)
+    alt = c3.number_input("Altura (mm)", min_value=0)
+    qtd = st.number_input("Quantidade de Peças", min_value=1, step=1)
     
-    st.subheader("💎 Vidro")
-    c_v, e_v = st.columns(2)
-    cor_vidro = c_v.selectbox("Cor Vidro", list(st.session_state.custo_vidros.keys()))
-    esp_vidro = e_v.selectbox("Espessura", list(st.session_state.custo_vidros[cor_vidro].keys()))
-    
-    l_p, a_p, q_p = st.columns(3)
-    larg = l_p.number_input("Largura (mm)", step=1); alt = a_p.number_input("Altura (mm)", step=1); qtd = q_p.number_input("Quantidade", min_value=1)
-    
-    st.subheader("📍 Detalhes e Observações")
+    st.subheader("📍 Ambientes e Observações")
     pecas_info = []
     for i in range(int(qtd)):
         l_c, o_c = st.columns([1, 2])
-        loc = l_c.text_input(f"Ambiente {i+1}", key=f"loc_{i}")
-        obs_p = o_c.text_input(f"Obs Técnica {i+1}", key=f"obs_{i}")
+        loc = l_c.text_input(f"Ambiente {i+1}", key=f"loc_input_{i}")
+        obs_p = o_c.text_input(f"Obs {i+1}", key=f"obs_input_{i}")
         pecas_info.append({"ambiente": loc, "nota": obs_p})
         
-    if st.button("💾 Adicionar ao Orçamento"):
+    if st.button("💾 Adicionar Projeto"):
         st.session_state.db_projetos.append({
-            "linha": linha, "tipo": tipo, "cor": cor, "vidro_cor": cor_vidro, "vidro_esp": esp_vidro,
-            "larg": larg, "alt": alt, "qtd": qtd, "detalhes": pecas_info
+            "tipo": tipo, "larg": larg, "alt": alt, "qtd": qtd, "detalhes": pecas_info
         })
         st.success("Adicionado!")
 
-# --- ABA 3: ORÇAMENTO (EXCLUSÃO UNITÁRIA E TOTAL) ---
+# --- ABA 3: ORÇAMENTO (ONDE ESTAVA O ERRO) ---
 with tabs[2]:
-    st.header("💰 Gerenciar Orçamento")
+    st.header("💰 Itens do Orçamento")
+    # Limpeza total
+    if st.button("🔥 LIMPAR TODO O ORÇAMENTO", key="btn_clear_orc"):
+        st.session_state.db_projetos = []
+        st.rerun()
+    
+    st.divider()
+    
+    # Exclusão unitária corrigida
     if st.session_state.db_projetos:
         for idx, p in enumerate(st.session_state.db_projetos):
             with st.container():
+                col_info, col_btn = st.columns([5, 1])
+                col_info.markdown(f"""
+                <div class='card-projeto'>
+                    <strong>{p['tipo']}</strong> | {p['larg']}x{p['alt']}mm | {p['qtd']} unidades
+                </div>
+                """, unsafe_allow_html=True)
+                
+                # A chave (key) agora é baseada no índice e no tipo para nunca repetir
+                if col_btn.button("🗑️ Apagar", key=f"btn_del_item_{idx}_{p['tipo']}"):
+                    st.session_state.db_projetos.pop(idx)
+                    st.rerun()
+    else:
+        st.info("Nenhum item no orçamento.")
+
+# --- ABA 6: GESTÃO OBRAS ---
+with tabs[5]:
+    st.header("🚧 Controle de Obras")
+    if st.button("🔥 LIMPAR TODAS AS OBRAS", key="btn_clear_obras"):
+        st.session_state.db_obras = []
+        st.rerun()
+        
+    for i, obra in enumerate(st.session_state.db_obras):
+        c_o1, c_o2 = st.columns([4, 1])
+        c_o1.write(f"🏗️ {obra['cliente']}")
+        if c_o2.button("🗑️ Excluir", key=f"btn_obra_del_{i}"):
+            st.session_state.db_obras.pop(i)
+            st.rerun()
