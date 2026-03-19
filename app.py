@@ -2,38 +2,8 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime
 
-# --- CONFIGURAÇÃO DA PÁGINA E ESTILO VISUAL ---
+# --- CONFIGURAÇÃO DA PÁGINA (PADRÃO ORIGINAL) ---
 st.set_page_config(page_title="Esquadplan", layout="wide")
-
-# CSS Simples para as cores: Amarelo, Cinza e Preto
-st.markdown("""
-    <style>
-    /* Cor de fundo geral */
-    .stApp { background-color: #FFFFFF; }
-    
-    /* Customização das Abas */
-    button[data-baseweb="tab"] {
-        color: #000000 !important;
-    }
-    button[data-baseweb="tab"][aria-selected="true"] {
-        background-color: #FFD700 !important; /* Amarelo Ouro */
-        border-radius: 5px;
-        font-weight: bold;
-    }
-    
-    /* Botões em Preto com texto Amarelo */
-    .stButton>button {
-        background-color: #000000;
-        color: #FFD700;
-        border: 1px solid #000000;
-        width: 100%;
-    }
-    .stButton>button:hover {
-        background-color: #333333;
-        color: #FFD700;
-    }
-    </style>
-    """, unsafe_allow_html=True)
 
 # --- INICIALIZAÇÃO DO ESTADO ---
 if 'carrinho' not in st.session_state:
@@ -47,119 +17,125 @@ if 'estoque' not in st.session_state:
         "Componentes/Kits (un)": {"qtd": 0, "custo_unit": 0.0}
     }
 
-# --- TOPO DA PÁGINA ---
-col_l, col_r = st.columns([1, 4])
-with col_l:
+# --- CABEÇALHO ---
+col_logo, col_info = st.columns([1, 4])
+with col_logo:
     st.subheader("📏 ESQUADPLAN")
-with col_r:
-    st.write("**Dados da Empresa:** Sua Serralheria & Vidraçaria | CNPJ: 00.000.000/0001-00")
-    st.write("Endereço: Sua Rua, 123 - Cidade/UF | Contato: (00) 00000-0000")
+with col_info:
+    st.write("**Dados da Empresa:** Sua Serralheria & Vidraçaria | Contato: (00) 00000-0000")
+    st.write("Endereço: Sua Rua, 123 - Cidade/UF")
 
 st.divider()
 
 # --- ABAS ---
-tab_cli, tab_tip, tab_orc, tab_est, tab_his = st.tabs([
-    "👤 CLIENTE", "🛠️ TIPOLOGIA", "📑 ORÇAMENTO", "📦 ESTOQUE", "📋 HISTÓRICO"
-])
+tabs = st.tabs(["👤 CLIENTE", "🛠️ TIPOLOGIA", "📑 ORÇAMENTO", "📦 ESTOQUE", "📋 HISTÓRICO"])
+tab_cli, tab_tip, tab_orc, tab_est, tab_his = tabs
 
 # --- ABA 1: DADOS DO CLIENTE ---
 with tab_cli:
-    st.subheader("Cadastro do Cliente")
+    st.header("Ficha do Cliente")
     c1, c2, c3 = st.columns([2, 1, 1])
-    nome = c1.text_input("Nome/Razão Social", key="cli_nome")
-    tel = c2.text_input("Telefone/WhatsApp", key="cli_tel")
-    email = c3.text_input("E-mail", key="cli_email")
+    st.session_state.nome_cli = c1.text_input("Nome/Razão Social")
+    st.session_state.tel_cli = c2.text_input("Telefone/WhatsApp")
+    st.session_state.email_cli = c3.text_input("E-mail")
 
-    st.markdown("**Endereço de Cadastro**")
+    st.markdown("### Endereço de Cadastro")
     e1, e2, e3, e4 = st.columns([1, 2, 1, 1])
-    cep = e1.text_input("CEP")
-    rua = e2.text_input("Logradouro (Rua/Av)")
-    num = e3.text_input("Nº")
-    comp = e4.text_input("Comp.")
+    st.session_state.cep = e1.text_input("CEP")
+    st.session_state.rua = e2.text_input("Rua/Avenida")
+    st.session_state.num = e3.text_input("Nº")
+    st.session_state.comp = e4.text_input("Complemento")
 
     e5, e6, e7 = st.columns([1, 1, 1])
-    bairro = e5.text_input("Bairro")
-    cidade = e6.text_input("Cidade")
-    st.session_state.entrega = e7.text_input("Endereço de Entrega (se diferente)")
+    st.session_state.bairro = e5.text_input("Bairro")
+    st.session_state.cidade = e6.text_input("Cidade")
+    st.session_state.entrega = e7.text_input("Endereço de Entrega (Diferente)")
     
-    st.session_state.obs = st.text_area("Observações da Obra")
+    st.session_state.obs = st.text_area("Observações Gerais")
 
 # --- ABA 2: TIPOLOGIA E MEDIDAS ---
 with tab_tip:
-    st.subheader("Configuração das Peças")
+    st.header("Configuração da Peça")
     
-    r1_1, r1_2, r1_3 = st.columns([2, 1, 1])
-    ambiente = r1_1.text_input("Ambiente (Ex: Cozinha)", "Sala")
-    instalacao = r1_2.selectbox("Instalação", ["Bucha/Parafuso", "Contra-marco", "Kit Box", "Colado"])
-    qtd = r1_3.number_input("Quantidade", min_value=1, value=1)
+    r1, r2, r3 = st.columns([2, 1, 1])
+    amb = r1.text_input("Ambiente", "Cozinha")
+    inst = r2.selectbox("Instalação", ["Bucha/Parafuso", "Contra-marco", "Kit Box", "Colado"])
+    qtd = r3.number_input("Quantidade", min_value=1, value=1)
 
     st.divider()
     
-    r2_1, r2_2, r2_3, r2_4 = st.columns([2, 1, 1, 1])
-    cat = r2_1.selectbox("Categoria", ["Linha Suprema", "Temperado", "Espelho", "Box"])
-    largura = r2_2.number_input("Largura (mm)", value=1000)
-    altura = r2_3.number_input("Altura (mm)", value=1000)
-    cor = r2_4.selectbox("Cor", ["Preto", "Branco", "Natural", "Bronze"])
+    col_a, col_b = st.columns([1, 1])
+    with col_a:
+        cat = st.radio("Categoria", ["Linha Suprema", "Temperado/Box", "Espelhos"])
+        if cat == "Linha Suprema":
+            tipo = st.selectbox("Modelo", ["Janela 2 Fls", "Janela 4 Fls", "Porta Giro", "Maxim-ar"])
+            
+        elif cat == "Temperado/Box":
+            tipo = st.selectbox("Modelo", ["Box Padrão", "Box de Canto", "Fixo + Correr"])
+            
+        else:
+            tipo = st.selectbox("Modelo", ["Espelho 4mm", "Espelho Bisotê"])
+            
 
-    if st.button("➕ ADICIONAR AO ORÇAMENTO"):
-        # Cálculo básico de contra-marco
-        cm = f"{largura+44}x{altura+44}" if instalacao == "Contra-marco" else "N/A"
-        
+    with col_b:
+        larg = st.number_input("Largura (mm)", value=1000)
+        alt = st.number_input("Altura (mm)", value=1000)
+        cor = st.selectbox("Cor", ["Preto", "Branco", "Natural", "Bronze"])
+
+    if st.button("➕ ADICIONAR AO ORÇAMENTO", use_container_width=True):
+        cm = f"{larg+44}x{alt+44}" if inst == "Contra-marco" else "N/A"
         item = {
-            "Ambiente": ambiente,
-            "Item": f"{cat} - {cor}",
-            "Medida": f"{largura}x{altura}",
-            "Qtd": qtd,
-            "Instalacao": instalacao,
-            "Contra-marco": cm
+            "Ambiente": amb, "Item": f"{cat} - {tipo}", "Medida": f"{larg}x{alt}",
+            "Qtd": qtd, "Instalação": inst, "Contra-marco": cm, "Cor": cor
         }
         st.session_state.carrinho.append(item)
-        st.toast("Item adicionado!")
+        st.toast(f"Item {amb} adicionado!")
 
 # --- ABA 3: ORÇAMENTO (CARRINHO) ---
 with tab_orc:
-    st.subheader(f"Orçamento para: {nome if nome else 'Novo Cliente'}")
+    st.header(f"Orçamento: {st.session_state.get('nome_cli', 'Novo Cliente')}")
     
     if st.session_state.carrinho:
         df_orc = pd.DataFrame(st.session_state.carrinho)
         st.table(df_orc)
         
-        st.write(f"**Observações:** {st.session_state.get('obs', '')}")
-        st.write(f"**Endereço de Entrega:** {st.session_state.get('entrega', 'Mesmo do cadastro')}")
-
-        col_b1, col_b2 = st.columns(2)
-        if col_b1.button("🗑️ LIMPAR TUDO"):
+        st.info(f"**Obs:** {st.session_state.get('obs', 'Nenhuma')}")
+        
+        c_b1, c_b2 = st.columns(2)
+        if c_b1.button("🗑️ LIMPAR TUDO"):
             st.session_state.carrinho = []
             st.rerun()
-            
-        if col_b2.button("🚀 SALVAR PEDIDO"):
-            pedido = {
-                "Cliente": nome, "Data": datetime.now().strftime("%d/%m/%Y"),
+        if c_b2.button("💾 SALVAR PEDIDO"):
+            obra = {
+                "Cliente": st.session_state.nome_cli, "Data": datetime.now().strftime("%d/%m/%Y"),
                 "Itens": st.session_state.carrinho.copy()
             }
-            st.session_state.obras_fechadas.append(pedido)
+            st.session_state.obras_fechadas.append(obra)
             st.session_state.carrinho = []
-            st.success("Pedido Salvo!")
+            st.success("Pedido registrado!")
             st.rerun()
     else:
-        st.info("O orçamento está vazio.")
+        st.warning("Carrinho vazio.")
 
-# --- ABA 4: ESTOQUE E CUSTO ---
+# --- ABA 4: ESTOQUE ---
 with tab_est:
-    st.subheader("Gestão de Estoque e Preço de Compra")
-    
-    # Tabela de visualização de estoque
+    st.header("Estoque e Custos")
     df_est = pd.DataFrame.from_dict(st.session_state.estoque, orient='index')
     st.table(df_est)
 
-    with st.expander("📥 Registrar Compra (Entrada de Material)"):
-        it_compra = st.selectbox("Material Comprado", list(st.session_state.estoque.keys()))
-        qtd_compra = st.number_input("Quantidade Comprada", min_value=0.0)
-        preco_compra = st.number_input("Preço de Custo Total Pago (R$)", min_value=0.0)
-        
+    with st.expander("📥 Registrar Compra"):
+        item_c = st.selectbox("Material", list(st.session_state.estoque.keys()))
+        qtd_c = st.number_input("Quantidade", min_value=0.0)
+        preco_c = st.number_input("Preço de Custo Total (R$)", min_value=0.0)
         if st.button("Salvar Entrada"):
-            unit = preco_compra / qtd_compra if qtd_compra > 0 else 0
-            st.session_state.estoque[it_compra]['qtd'] += qtd_compra
-            st.session_state.estoque[it_compra]['custo_unit'] = unit
-            st.success("Estoque Atualizado!")
+            unit = preco_c / qtd_c if qtd_c > 0 else 0
+            st.session_state.estoque[item_c]['qtd'] += qtd_c
+            st.session_state.estoque[item_c]['custo_unit'] = unit
             st.rerun()
+
+# --- ABA 5: HISTÓRICO ---
+with tab_his:
+    st.header("Histórico de Obras")
+    for ob in st.session_state.obras_fechadas:
+        with st.expander(f"Cliente: {ob['Cliente']} - {ob['Data']}"):
+            st.table(pd.DataFrame(ob['Itens']))
