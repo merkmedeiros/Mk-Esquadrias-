@@ -4,133 +4,155 @@ import math
 from datetime import datetime
 
 # CONFIGURAÇÃO DA PÁGINA
-st.set_page_config(page_title="Serralheria Control v6.0", layout="wide")
+st.set_page_config(page_title="Serralheria Gestão Total v7.0", layout="wide")
 
-# --- INICIALIZAÇÃO DO BANCO DE DADOS (SESSION STATE) ---
+# --- BANCO DE DATA (ESTADOS) ---
 if 'estoque' not in st.session_state:
-    st.session_state.estoque = {
-        "Barras Alumínio (m)": 0.0,
-        "Roldanas (un)": 0,
-        "Fechos (un)": 0,
-        "Escova Vedação (m)": 0.0,
-        "Silicone (tubos)": 0
-    }
+    st.session_state.estoque = {"Alumínio (m)": 100.0, "Roldanas": 50, "Fechos": 20, "Escova (m)": 100.0}
 if 'carrinho' not in st.session_state:
     st.session_state.carrinho = []
 if 'obras_fechadas' not in st.session_state:
     st.session_state.obras_fechadas = []
-if 'historico_estoque' not in st.session_state:
-    st.session_state.historico_estoque = []
 
-st.title("🏗️ Serralheria Pro 6.0 - Gestão de Estoque & Produção")
-
-# --- FUNÇÕES DE AUXÍLIO ---
-def registrar_estoque(item, qtd, tipo="Entrada"):
-    if tipo == "Entrada":
-        st.session_state.estoque[item] += qtd
-    else:
-        st.session_state.estoque[item] -= qtd
-    st.session_state.historico_estoque.append({
-        "Data": datetime.now().strftime("%d/%m %H:%M"),
-        "Tipo": tipo, "Item": item, "Qtd": qtd
-    })
+st.title("⚒️ Sistema Integrado de Esquadrias - Linha Suprema")
 
 # --- ABAS ---
 tab_config, tab_pedido, tab_estoque, tab_obras, tab_fin = st.tabs([
-    "🛠️ CONFIG. PEÇA", "🛒 PROJETO ATUAL", "📦 ESTOQUE/ALMOXARIFADO", "📋 OBRAS CONCLUÍDAS", "📈 FINANCEIRO"
+    "🛠️ MEDIDAS E TIPOLOGIA", "🛒 ITENS DO PROJETO", "📦 ALMOXARIFADO", "📋 OBRAS FECHADAS", "📈 FINANCEIRO"
 ])
 
-# --- ABA 1: CONFIGURAÇÃO ---
+# --- ABA 1: MEDIDAS E TIPOLOGIA (CONSOLIDADA) ---
 with tab_config:
-    st.header("Nova Esquadria")
-    with st.expander("📍 Localização e Instalação", expanded=True):
+    st.header("Configuração Completa da Peça")
+    
+    # Seção 1: Identificação e Ambiente
+    with st.container():
         c1, c2, c3 = st.columns(3)
-        ambiente = c1.text_input("Ambiente (Ex: Cozinha, Quarto 1)", "Sala")
-        metodo_inst = c2.selectbox("Método de Instalação", ["Bucha e Parafuso", "Com Contra-marco", "Alvenaria Direta"])
-        cliente = c3.text_input("Cliente/Obra", "Nova Obra")
+        cliente_nome = c1.text_input("Nome do Cliente/Obra", "Obra Residencial")
+        ambiente = c2.text_input("Descrição do Ambiente (Ex: Cozinha, Suíte)", "Sala")
+        status_venda = c3.selectbox("Status do Orçamento", ["Aberto", "Aprovado", "Em Produção"])
 
-    with st.expander("📐 Medidas e Tipologia"):
-        col1, col2, col3 = st.columns(3)
-        tipo = col1.selectbox("Tipologia", ["Janela Correr 2 Fls", "Janela Correr 4 Fls", "Porta Giro 1 Fl"])
-        L = col1.number_input("Largura (mm)", value=1200)
-        H = col1.number_input("Altura (mm)", value=1000)
-        qtd = col2.number_input("Quantidade de Peças", min_value=1, value=1)
-        cor = col2.selectbox("Cor Alumínio", ["Branco", "Preto", "Natural"])
-        v_tipo = col3.selectbox("Vidro", ["Temperado 8mm", "Laminado 6mm"])
-        v_cor = col3.selectbox("Cor Vidro", ["Incolor", "Fumê"])
+    st.divider()
 
-    if st.button("➕ ADICIONAR AO PROJETO"):
-        # Cálculos de materiais para baixa de estoque posterior
-        perimetro = ((L*2 + H*2) / 1000) * qtd
-        folhas = 2 if "2 Fls" in tipo else 4
+    # Seção 2: Engenharia, Medidas e Instalação (Tudo que você pediu aqui)
+    with st.container():
+        col1, col2, col3, col4 = st.columns([2, 1, 1, 2])
         
-        item_projeto = {
-            "Ambiente": ambiente,
-            "Peça": f"{tipo} ({cor})",
-            "Medida": f"{L}x{H}",
-            "Instalação": metodo_inst,
-            "Qtd": qtd,
-            "Custo_Est": (L*H/1000000) * 550 * qtd,
-            # Dados para baixa automática:
-            "m_alu": (perimetro * 1.5), # Estimativa de metros lineares de perfis
-            "roldanas": folhas * qtd,
-            "escova": perimetro * 2
-        }
-        st.session_state.carrinho.append(item_projeto)
-        st.success(f"Item para {ambiente} adicionado!")
-
-# --- ABA 2: PROJETO ATUAL & BAIXA ---
-with tab_pedido:
-    if st.session_state.carrinho:
-        st.header("Itens do Orçamento")
-        df_c = pd.DataFrame(st.session_state.carrinho)
-        st.table(df_c[["Ambiente", "Peça", "Medida", "Instalação", "Qtd"]])
+        with col1:
+            tipologia = st.selectbox("Tipologia da Peça", [
+                "Janela Correr 2 Fls", "Janela Correr 3 Fls", "Janela Correr 4 Fls", 
+                "Porta Giro 1 Fl", "Porta Giro 2 Fls", "Maxim-ar"
+            ])
+            metodo_inst = st.radio("Método de Instalação", ["Bucha e Parafuso", "Com Contra-marco", "Alvenaria Direta"])
         
-        total_obra = df_c["Custo_Est"].sum()
-        st.subheader(f"Total Estimado: R$ {total_obra:.2f}")
-        
-        if st.button("🚀 FECHAR PEDIDO E DAR BAIXA NO ESTOQUE"):
-            for item in st.session_state.carrinho:
-                registrar_estoque("Barras Alumínio (m)", item['m_alu'], "Saída")
-                registrar_estoque("Roldanas (un)", item['roldanas'], "Saída")
-                registrar_estoque("Escova Vedação (m)", item['escova'], "Saída")
+        with col2:
+            L = st.number_input("Largura L (mm)", value=1500)
+            H = st.number_input("Altura H (mm)", value=1200)
+            qtd_pecas = st.number_input("Qtd de Peças Iguais", min_value=1, value=1)
             
-            st.session_state.obras_fechadas.append({
-                "Cliente": cliente, "Data": datetime.now().strftime("%d/%m/%Y"),
-                "Itens": st.session_state.carrinho.copy(), "Valor": total_obra
-            })
-            st.session_state.carrinho = []
+        with col3:
+            cor_alu = st.selectbox("Cor do Alumínio", ["Branco", "Preto", "Natural", "Bronze", "Amadeirado"])
+            p_alu = st.number_input("Preço Alumínio (R$/kg)", value=48.0)
+            
+        with col4:
+            # Opções de Vidro Detalhadas
+            v_tipo = st.selectbox("Tipo de Vidro", ["Comum", "Temperado", "Laminado"])
+            if v_tipo == "Comum":
+                v_esp = st.selectbox("Espessura (mm)", [4, 6, 8, 10])
+            else:
+                v_esp = st.selectbox("Espessura (mm)", [6, 8, 10])
+            
+            v_cor = st.selectbox("Cor do Vidro", ["Incolor", "Verde", "Fumê", "Leitoso", "Refletivo"])
+            v_extra = st.selectbox("Tratamento/Película", ["Nenhum", "Película G5", "Película G20", "Jateado", "Espelhada"])
+
+    st.divider()
+
+    # Botão de Ação Principal
+    if st.button("➕ ADICIONAR ESTE ITEM AO PROJETO", use_container_width=True):
+        # Lógica de Descontos Suprema
+        vl, vh, vq = (L-110)/2, H-145, 2 # Exemplo 2 fls
+        perimetro = ((L*2 + H*2) / 1000) * qtd_pecas
+        peso_est = (perimetro * 1.8) # Estimativa kg/m linear
+        
+        novo_item = {
+            "Ambiente": ambiente,
+            "Tipologia": tipologia,
+            "Medida": f"{L}x{H}",
+            "Qtd": qtd_pecas,
+            "Instalação": metodo_inst,
+            "Vidro": f"{v_tipo} {v_esp}mm {v_cor} ({v_extra})",
+            "Custo_Estimado": (peso_est * p_alu) + (180 * qtd_pecas), # 180 = Vidro+Acessórios/un
+            "L": L, "H": H, "V_L": vl, "V_H": vh, "V_Q": vq,
+            "Peso_Total": peso_est
+        }
+        st.session_state.carrinho.append(novo_item)
+        st.success(f"Item '{ambiente}' adicionado com sucesso!")
+
+# --- ABA 2: ITENS DO PROJETO (ONDE FECHA A OBRA) ---
+with tab_pedido:
+    st.header(f"Resumo da Obra: {cliente_nome}")
+    if st.session_state.carrinho:
+        df_car = pd.DataFrame(st.session_state.carrinho)
+        st.dataframe(df_car[["Ambiente", "Tipologia", "Medida", "Qtd", "Instalação", "Vidro"]], use_container_width=True)
+        
+        total_obra = df_car["Custo_Estimado"].sum()
+        
+        c_fin1, c_fin2 = st.columns(2)
+        with c_fin1:
+            st.subheader(f"Total Materiais: R$ {total_obra:.2f}")
+            desconto = st.number_input("Desconto Especial (R$)", value=0.0)
+            forma_pag = st.selectbox("Forma de Pagamento", ["Pix", "Dinheiro", "Cartão Crédito", "Cartão Débito", "Boleto", "Parcelado"])
+            if forma_pag == "Parcelado":
+                parc = st.number_input("Vezes", min_value=2, max_value=12, value=2)
+        
+        with c_fin2:
+            valor_final = total_obra - desconto
+            st.metric("VALOR FINAL DO PEDIDO", f"R$ {valor_final:.2f}")
+            
+        if st.button("🚀 FECHAR PEDIDO, DAR BAIXA NO ESTOQUE E GERAR CHECKLIST"):
+            # Lógica de Baixa no Estoque
+            total_m_alu = df_car["Peso_Total"].sum() / 0.65 # converte kg p/ metros aprox.
+            st.session_state.estoque["Alumínio (m)"] -= total_m_alu
+            
+            obra_final = {
+                "Cliente": cliente_nome,
+                "Data": datetime.now().strftime("%d/%m/%Y"),
+                "Valor": valor_final,
+                "Pagamento": forma_pag,
+                "Itens": st.session_state.carrinho.copy()
+            }
+            st.session_state.obras_fechadas.append(obra_final)
+            st.session_state.carrinho = [] # Limpa projeto atual
             st.balloons()
             st.rerun()
     else:
-        st.info("O projeto está vazio.")
+        st.info("Adicione itens na primeira aba para ver o resumo aqui.")
 
-# --- ABA 3: ESTOQUE/ALMOXARIFADO ---
+# --- ABA 3: ESTOQUE (ALMOXARIFADO) ---
 with tab_estoque:
-    st.header("📦 Controle de Almoxarifado")
+    st.header("📦 Saldo em Estoque")
+    cols = st.columns(len(st.session_state.estoque))
+    for i, (item, qtd) in enumerate(st.session_state.estoque.items()):
+        cols[i].metric(item, f"{qtd:.1f}")
     
-    # Exibição dos cards de estoque
-    c1, c2, c3, c4 = st.columns(4)
-    c1.metric("Alumínio (m)", f"{st.session_state.estoque['Barras Alumínio (m)']:.1f}m")
-    c2.metric("Roldanas", st.session_state.estoque['Roldanas (un)'])
-    c3.metric("Fechos", st.session_state.estoque['Fechos (un)'])
-    c4.metric("Escova (m)", f"{st.session_state.estoque['Escova Vedação (m)']:.1f}m")
-
-    with st.expander("📥 Entrada Manual de Material (Compra)"):
-        col_e1, col_e2 = st.columns(2)
-        item_add = col_e1.selectbox("Item Comprado", list(st.session_state.estoque.keys()))
-        qtd_add = col_e2.number_input("Quantidade Adquirida", min_value=0.0)
-        if st.button("Confirmar Entrada"):
-            registrar_estoque(item_add, qtd_add, "Entrada")
-            st.success("Estoque Atualizado!")
+    st.divider()
+    st.subheader("📥 Entrada de Material")
+    with st.form("entrada_estoque"):
+        item_ent = st.selectbox("Item", list(st.session_state.estoque.keys()))
+        qtd_ent = st.number_input("Quantidade Comprada", min_value=0.0)
+        if st.form_submit_button("Registrar Compra"):
+            st.session_state.estoque[item_ent] += qtd_ent
             st.rerun()
 
-    st.subheader("📜 Histórico de Movimentação")
-    st.dataframe(pd.DataFrame(st.session_state.historico_estoque), use_container_width=True)
-
-# --- ABA 4: OBRAS CONCLUÍDAS ---
+# --- ABA 4: OBRAS FECHADAS (CHECKLIST COMPLETO) ---
 with tab_obras:
-    for obra in st.session_state.obras_fechadas:
-        with st.expander(f"Obra: {obra['Cliente']} - {obra['Data']}"):
-            st.write("**Lista de Ambientes e Instalação:**")
-            st.table(pd.DataFrame(obra['Itens'])[["Ambiente", "Peça", "Medida", "Instalação"]])
+    if st.session_state.obras_fechadas:
+        for obra in st.session_state.obras_fechadas:
+            with st.expander(f"📁 {obra['Data']} - Cliente: {obra['Cliente']} | R$ {obra['Valor']:.2f}"):
+                st.write(f"**Pagamento:** {obra['Pagamento']}")
+                st.markdown("### 📋 Checklist de Produção e Instalação")
+                df_obra = pd.DataFrame(obra['Itens'])
+                st.table(df_obra[["Ambiente", "Tipologia", "Medida", "Instalação", "Vidro"]])
+                st.info("⚠️ Instrução: Verificar se o contra-marco foi assentado 48h antes da instalação.")
+    else:
+        st.write("Nenhum histórico disponível.")
